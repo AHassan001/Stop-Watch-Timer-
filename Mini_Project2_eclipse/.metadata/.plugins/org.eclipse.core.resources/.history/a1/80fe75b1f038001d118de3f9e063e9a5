@@ -1,0 +1,117 @@
+/*
+ * Mini_project2.c
+ *
+ *  Created on: Sep 18, 2022
+ *      Author: amahe
+ */
+
+#include <avr/io.h>
+#include <util/delay.h>
+#include <avr/interrupt.h>
+
+void INT0_Init(void);
+void INT1_Init(void);
+void INT2_Init(void);
+void Timer1_CTC_Init(void);
+
+unsigned char g_sec =0;
+unsigned char g_min =0;
+unsigned char g_hour =0;
+
+
+ISR(INT0_vect)
+{
+}
+
+ISR(INT1_vect)
+{
+}
+
+ISR(INT2_vect)
+{
+}
+
+ISR (TIMER1_COMPA_vect)
+{
+
+}
+
+void INT0_Init(void)
+{
+	MCUCR |= (1<<ISC01);  				// Trigger INT0 with the falling edge
+	GICR  |= (1<<INT0);                 // Enable external interrupt pin INT0
+}
+
+void INT1_Init(void)
+{
+	MCUCR |= (1<<ISC10) | (1<<ISC11);   /* Trigger INT1 with the raising edge */
+	GICR  |= (1<<INT1);                 /* Enable external interrupt pin INT1 */
+}
+
+void INT2_Init(void)
+{
+	GICR  |= (1<<INT2);                 /* Enable external interrupt pin INT2 */
+}
+
+void Timer1_CTC_Init(void)
+{
+	TCNT1 = 0;
+	//OCR1A = ;
+	TIMSK |= (1<<OCIE1A);
+	//TCCR1A |= (1<<WGM12);
+	// TCCR1B |= (1<<) | ()
+
+}
+
+int main(void)
+{
+	DDRD &= ~(1<<PD2) & ~(1<<PD3);   /* clear the DDRX to identify it is a input of the push bottoms */
+	DDRB &= ~(1<<PB2);
+
+	DDRA |= 0xFC;  		/* Set bit to make it output*/
+	SREG  |= (1<<7);    /* Enable interrupts by setting I-bit */
+
+	INT0_Init();
+	INT1_Init();
+	INT2_Init();
+	Timer1_CTC_Init();
+
+	while(1)
+	{
+		if (! (PIND & (1<<PD2)) ) /* check if PD2 is pressed pull up check on 0*/
+		{
+			_delay_ms(30);
+			if (!( PIND & (1<<PD2) ) ) /* check if PD2 is still pressed and it is not noise */
+				{
+
+				}
+			while (! (PIND & (1<<PD2)) ){}
+		}
+
+		else if ( PIND & (1<<PD3)) /* check if PD3 is pressed pull down check on 1 */
+		{
+			_delay_ms(30);
+			if ( PIND & (1<<PD3)) /* check if PD3 is still pressed and it is not noise */
+				{
+
+				}
+		}
+
+		else if (! (PINB & (1<<PB2)) ) /* check if PB2 is pressed pull up check on 0  */
+		{
+			_delay_ms(30);
+			if (! (PINB & (1<<PB2)) ) /* check if PB2 is still pressed and it is not noise */
+				{
+
+				}
+		}
+
+		else
+		{
+
+		}
+	}
+
+	return 0;
+}
+

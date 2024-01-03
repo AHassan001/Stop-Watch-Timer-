@@ -1,0 +1,204 @@
+/*
+ * Mini_project2.c
+ *
+ *  Created on: Sep 18, 2022
+ *      Author: amahe
+ */
+
+#include <avr/io.h>
+#include <util/delay.h>
+#include <avr/interrupt.h>
+
+void INT0_Init(void);
+void INT1_Init(void);
+void INT2_Init(void);
+void Timer1_CTC_Init(void);
+
+unsigned char g_sec_1  =0;
+unsigned char g_sec_2  =0;
+unsigned char g_min_1  =0;
+unsigned char g_min_2  =0;
+unsigned char g_hour_1 =0;
+unsigned char g_hour_2 =0;
+
+
+ISR(INT0_vect) /* Reset */
+{
+	TCNT1 = 0;
+	g_sec_1  =0;
+	g_sec_2  =0;
+	g_min_1  =0;
+	g_min_2  =0;
+	g_hour_1 =0;
+	g_hour_2 =0;
+}
+
+ISR(INT1_vect) /* Pause */
+{
+	TCCR1B &= ~(1<<CS12) & ~(1<<CS10);
+}
+
+ISR(INT2_vect) /* Resume */
+{
+	TCCR1B |= (1<<CS12) | (1<<CS10);
+}
+
+ISR (TIMER1_COMPA_vect)
+{
+		TIMSK &= ~(1<<OCIE1A);
+
+		if (g_sec_1 >= 9 )
+		{
+			g_sec_1 = 0;
+			g_sec_2 ++;
+
+			if(g_sec_2 >= 5)
+			{
+				g_min_1 ++;
+				g_sec_2=0;
+
+				if(g_min_1 >= 9)
+				{
+					g_min_2 ++;
+					g_min_1 =0;
+
+					if(g_min_2 >= 5)
+					{
+						g_hour_1 ++;
+						g_min_2 =0;
+
+						if(g_hour_1 >= 9 )
+						{
+							g_hour_2 ++;
+							g_hour_1=0;
+
+							if(g_hour_2 >= 9)
+							{
+								g_hour_1= 0;
+								g_hour_2= 0;
+								g_min_1 =0;
+								g_min_2 =0;
+								g_sec_1 =0;
+								g_sec_2 =0;
+							}
+						}
+
+						else
+						{
+							if (g_min_2 !=0 )
+							g_hour_1 ++;
+						}
+					}
+
+					else
+					{
+						if (g_min_1 !=0 )
+						g_min_2 ++;
+					}
+				}
+
+				else
+				{
+					if (g_sec_2 !=0 )
+					g_min_1 ++;
+				}
+			}
+
+			else
+			{
+				if (g_sec_1!=0)
+				g_sec_2 ++;
+			}
+		}
+
+		else
+		{
+			g_sec_1 ++;
+		}
+
+		TIMSK |= (1<<OCIE1A);
+
+
+}
+
+void INT0_Init(void)
+{
+	MCUCR |= (1<<ISC01);  				// Trigger INT0 with the falling edge
+	GICR  |= (1<<INT0);                 // Enable external interrupt pin INT0
+}
+
+void INT1_Init(void)
+{
+	MCUCR |= (1<<ISC10) | (1<<ISC11);   /* Trigger INT1 with the raising edge */
+	GICR  |= (1<<INT1);                 /* Enable external interrupt pin INT1 */
+}
+
+void INT2_Init(void)
+{
+	GICR  |= (1<<INT2);                 /* Enable external interrupt pin INT2 */
+}
+
+void Timer1_CTC_Init(void)
+{
+	TCNT1 = 0;
+	OCR1A = 977;
+	TIMSK |= (1<<OCIE1A);
+	TCCR1A |= (1<<FOC1A);
+	TCCR1B |= (1<<WGM12) | (1<<CS12) | (1<<CS10);
+
+}
+
+int main(void)
+{
+	DDRD &= ~(1<<PD2) & ~(1<<PD3);   /* clear the DDRX to identify it is a input of the push bottoms */
+	PORTD |= (1<<PD2);
+
+	DDRB &= ~(1<<PB2);
+	PORTB |= (1<<PB2);
+
+	DDRA |= 0xFC;  		/* Set bit to make it output*/
+	DDRC |= 0x0F;
+
+	SREG  |= (1<<7);    /* Enable interrupts by setting I-bit */
+
+	INT0_Init();
+	INT1_Init();
+	INT2_Init();
+	Timer1_CTC_Init();
+
+	while(1)
+	{
+		PORTA |= (1<<0);
+		PORTC = (PORTC & 0xF0) | (g_sec_1 & 0x0F);
+		_delay_ms(1);
+		PORTA &= ~(1<<0);
+
+		PORTA |= (1<<1);
+		PORTC = (PORTC & 0xF0) | (g_sec_2 & 0x0F);
+		_delay_ms(1);
+		PORTA &= ~(1<<1);
+
+		PORTA |= (1<<2);
+		PORTC = (PORTC & 0xF0) | (g_min_1 & 0x0F);
+		_delay_ms(1);
+		PORTA &= ~(1<<2);
+
+		PORTA |= (1<<3);
+		PORTC = (PORTC & 0xF0) | (g_min_2 & 0x0F);
+		_delay_ms(1);
+		PORTA &= ~(1<<3);
+
+		PORTA |= (1<<4);
+		PORTC = (PORTC & 0xF0) | (g_hour_1 & 0x0F);
+		_delay_ms(1);
+		PORTA &= ~(1<<4);
+
+		PORTA |= (1<<5);
+		PORTC = (PORTC & 0xF0) | (g_hour_2 & 0x0F);
+		_delay_ms(1);
+		PORTA &= ~(1<<5);
+
+	}
+
+	return 0;
+}

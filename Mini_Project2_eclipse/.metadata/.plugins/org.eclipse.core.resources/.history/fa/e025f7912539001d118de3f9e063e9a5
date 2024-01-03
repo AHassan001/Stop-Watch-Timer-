@@ -1,0 +1,157 @@
+/*
+ * Mini_project2.c
+ *
+ *  Created on: Sep 18, 2022
+ *      Author: amahe
+ */
+
+#include <avr/io.h>
+#include <util/delay.h>
+#include <avr/interrupt.h>
+
+void INT0_Init(void);
+void INT1_Init(void);
+void INT2_Init(void);
+void Timer1_CTC_Init(void);
+void clk_updated (void);
+
+unsigned char clk[6] = {0, 0, 0, 0, 0, 0};
+unsigned char g_Timer_flag=0;
+
+ISR(INT0_vect) /* Reset */
+{
+	int t;
+	TCNT1 = 0;
+	for (t=0;t>=5;t++)
+	{
+		clk[t]=0;
+	}
+}
+
+ISR(INT1_vect) /* Pause */
+{
+	TCCR1B &= ~(1<<CS12) & ~(1<<CS10);
+}
+
+ISR(INT2_vect) /* Resume */
+{
+	TCCR1B |= (1<<CS12) | (1<<CS10);
+}
+
+ISR (TIMER1_COMPA_vect)
+{
+	g_Timer_flag =1;
+}
+
+void INT0_Init(void)
+{
+	MCUCR |= (1<<ISC01);  				// Trigger INT0 with the falling edge
+	GICR  |= (1<<INT0);                 // Enable external interrupt pin INT0
+}
+
+void INT1_Init(void)
+{
+	MCUCR |= (1<<ISC10) | (1<<ISC11);   /* Trigger INT1 with the raising edge */
+	GICR  |= (1<<INT1);                 /* Enable external interrupt pin INT1 */
+}
+
+void INT2_Init(void)
+{
+	GICR  |= (1<<INT2);                 /* Enable external interrupt pin INT2 */
+}
+
+void Timer1_CTC_Init(void)
+{
+	TCNT1 = 0;
+	OCR1A = 977;
+	TIMSK |= (1<<OCIE1A);
+	TCCR1A |= (1<<FOC1A);
+	TCCR1B |= (1<<WGM12) | (1<<CS12) | (1<<CS10);
+}
+
+void clk_updated (void)
+{
+	int t=0;
+
+		clk[0] ++;
+		if(clk[0]==10)
+		{
+			clk[1] ++;
+			clk[0]=0;
+		}
+
+		if(clk[1] == 6 && clk[0] == 0)
+		{
+			clk[1]=0;
+			clk[2] ++;
+		}
+
+		if(clk[2] == 9 && clk[1] == 6)
+		{
+			clk[2]=0;
+			clk[3] ++;
+		}
+
+		if(clk[3] == 6 && clk[2] == 9)
+		{
+			clk[3]=0;
+			clk[4] ++;
+		}
+
+		if(clk[4] == 9 && clk[3] == 6)
+		{
+			clk[4]=0;
+			clk[5] ++;
+		}
+
+		if(clk[5] == 9 && clk[4] == 9)
+		{
+			for (t=0;t>=5;t++)
+			{
+				clk[t]=0;
+			}
+		}
+
+	}
+
+
+int main(void)
+{
+	DDRD &= ~(1<<PD2) & ~(1<<PD3);   /* clear the DDRX to identify it is a input of the push bottoms */
+	PORTD |= (1<<PD2);				 /* activate internal pull up resistance */
+
+	DDRB &= ~(1<<PB2);
+	PORTB |= (1<<PB2);				/* activate internal pull up resistance */
+
+	DDRA |= 0xFC;  		/* Set bit to make it output*/
+	DDRC |= 0x0F;
+
+	SREG  |= (1<<7);    /* Enable interrupts by setting I-bit */
+
+	INT0_Init();
+	INT1_Init();
+	INT2_Init();
+	Timer1_CTC_Init();
+
+	while(1)
+	{
+		int i;
+		if(g_Timer_flag == 1)
+		{
+			clk_updated() ;
+			g_Timer_flag = 0;
+		}
+
+		for (i=0;i>=5;i++)
+		{
+			PORTC = (PORTC & 0xF0) | (clk[i] & 0x0F);
+			PORTA |= (1<<i);
+			_delay_ms(1);
+			PORTA &= ~(1<<i);
+		}
+
+	}
+
+	return 0;
+}
+
